@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Zeramai HR — Dashboard</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
+  header{background:#1a1a2e;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
+  header button{background:#c0392b;color:#fff;border:none;padding:8px 14px;border-radius:4px;cursor:pointer}
+  main{padding:24px;max-width:900px;margin:0 auto}
+  .card{background:#fff;border-radius:8px;padding:20px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  h3{margin-top:0}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:8px;border-bottom:1px solid #eee;font-size:14px}
+  input,select{padding:8px;margin:4px 4px 4px 0;border:1px solid #ccc;border-radius:4px}
+  button.action{background:#4338ca;color:#fff;border:none;padding:8px 14px;border-radius:4px;cursor:pointer}
+  .badge{padding:3px 8px;border-radius:10px;font-size:12px;background:#eee}
+  .badge.selected{background:#dcfce7;color:#166534}
+  .badge.converted_to_trainee{background:#dbeafe;color:#1e40af}
+  .badge.applied{background:#fef9c3;color:#854d0e}
+  #msg{font-size:13px;margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <div>Zeramai HR — Dashboard (<span id="whoami"></span>)</div>
+  <button onclick="logout()">Logout</button>
+</header>
+<main>
+
+  <div class="card">
+    <h3>Add Candidate</h3>
+    <input id="c_name" placeholder="Full name">
+    <input id="c_email" placeholder="Email">
+    <input id="c_dept" placeholder="Department" value="Artificial Intelligence">
+    <input id="c_position" placeholder="Applied position" value="Engineering Trainee">
+    <br>
+    <button class="action" onclick="createCandidate()">Create Candidate</button>
+    <div id="msg"></div>
+  </div>
+
+  <div class="card">
+    <h3>Candidates</h3>
+    <table id="candTable">
+      <thead><tr><th>Name/Email</th><th>Position</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Upload a Document</h3>
+    <p style="font-size:13px;color:#666">Person ID rendered in the candidates table above (click a row's "Copy ID" once converted). Paste it here to attach a document to that person.</p>
+    <input id="d_person" placeholder="Person ID">
+    <select id="d_type">
+      <option value="engagement_letter">Engagement Letter</option>
+      <option value="nda">NDA</option>
+      <option value="pan">PAN (sensitive)</option>
+      <option value="resume">Resume</option>
+    </select>
+    <input id="d_file" type="file">
+    <br>
+    <button class="action" onclick="uploadDoc()">Upload</button>
+    <div id="dmsg"></div>
+  </div>
+
+</main>
+<script>
+async function api(path, opts={}){
+  opts.credentials = 'include';
+  const res = await fetch(path, opts);
+  if(res.status === 401){ window.location.href = '/'; throw new Error('not logged in'); }
+  return res;
+}
+
+async function whoami(){
+  const res = await api('/api/auth/me');
+  const me = await res.json();
+  document.getElementById('whoami').innerText = me.email + ' — ' + me.role;
+}
+
+async function logout(){
+  await api('/api/auth/logout', {method:'POST'});
+  window.location.href = '/';
+}
+
+let candidateCache = [];
+
+async function loadCandidates(){
+  const res = await api('/api/candidates');
+  candidateCache = await res.json();
+  const tbody = document.querySelector('#candTable tbody');
+  tbody.innerHTML = '';
+  candidateCache.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${c.id.slice(0,8)}…</td>
+      <td>${c.applied_position||''} / ${c.department||''}</td>
+      <td><span class="badge ${c.status}">${c.status}</span></td>
+      <td>
+        ${c.status === 'selected' ? `<button class="action" onclick="convert('${c.id}')">Convert to Trainee</button>` : ''}
+        ${c.status === 'applied' ? `<button class="action" onclick="markSelected('${c.id}')">Mark Selected</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function createCandidate(){
+  const body = {
+    full_name: document.getElementById('c_name').value,
+    email: document.getElementById('c_email').value,
+    department: document.getElementById('c_dept').value,
+    applied_position: document.getElementById('c_position').value
+  };
+  const res = await api('/api/candidates', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  document.getElementById('msg').innerText = res.ok ? 'Candidate created.' : 'Error creating candidate.';
+  loadCandidates();
+}
+
+async function markSelected(id){
+  const res = await api(`/api/candidates/${id}/select`, {method:'POST'});
+  document.getElementById('msg').innerText = res.ok ? 'Marked as Selected.' : 'Failed.';
+  loadCandidates();
+}
+
+async function convert(id){
+  const body = {
+    department: 'Artificial Intelligence',
+    start_date: new Date().toISOString().slice(0,10),
+    duration_months: 6,
+    monthly_stipend: 5000
+  };
+  const res = await api(`/api/candidates/${id}/convert-to-trainee`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if(res.ok){
+    const eng = await res.json();
+    document.getElementById('msg').innerText = `Converted. Engagement ends ${eng.end_date}. Person ID: ${eng.person_id}`;
+  } else {
+    document.getElementById('msg').innerText = 'Conversion failed: ' + (await res.text());
+  }
+  loadCandidates();
+}
+
+async function uploadDoc(){
+  const personId = document.getElementById('d_person').value;
+  const docType = document.getElementById('d_type').value;
+  const fileInput = document.getElementById('d_file');
+  if(!fileInput.files.length){ document.getElementById('dmsg').innerText = 'Choose a file first.'; return; }
+  const fd = new FormData();
+  fd.append('person_id', personId);
+  fd.append('document_type', docType);
+  fd.append('file', fileInput.files[0]);
+  const res = await api('/api/documents', {method:'POST', body: fd});
+  document.getElementById('dmsg').innerText = res.ok ? 'Uploaded.' : 'Upload failed: ' + (await res.text());
+}
+
+whoami();
+loadCandidates();
+</script>
+</body>
+</html>

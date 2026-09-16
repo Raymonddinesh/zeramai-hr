@@ -1,0 +1,45 @@
+# Python & Virtual Env
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Testing & Linting Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local Database & Storage
+*.db
+*.sqlite3
+zeramai.db
+backend/zeramai.db
+backend/storage/*
+!backend/storage/.gitkeep
+
+# Environment Files & Credentials
+.env
+backend/.env
+frontend/.env.local
+frontend/.env.production.local
+
+# Node.js & Next.js Build Output
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+.npm
+
+# IDE & OS Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

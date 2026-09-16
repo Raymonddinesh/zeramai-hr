@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: zeramai
+      POSTGRES_PASSWORD: zeramaipassword
+      POSTGRES_DB: zeramai_hr
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://zeramai:zeramaipassword@db:5432/zeramai_hr
+      JWT_SECRET: production_jwt_secret_change_me
+      STORAGE_PROVIDER: local
+      STORAGE_LOCAL_PATH: ./storage
+      COOKIE_SECURE: "false"
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/storage:/app/storage
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
