@@ -16,6 +16,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Zeramai HR & Employee Onboarding Management System",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
