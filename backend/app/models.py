@@ -22,6 +22,9 @@ from app.models_v2 import (  # noqa: F401
     JobOpening, CandidateApplication, WorkflowTemplate, WorkflowInstance, SAMLProvider,
     JobStatus, ApplicationStage, WorkflowType, WorkflowStatus
 )
+from app.models_v3 import (  # noqa: F401
+    Tenant, LegalEntity, Location, Department, CostCenter, EmploymentHistory, HistoryChangeType
+)
 
 
 def gen_uuid():
