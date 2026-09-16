@@ -25,6 +25,9 @@ from app.models_v2 import (  # noqa: F401
 from app.models_v3 import (  # noqa: F401
     Tenant, LegalEntity, Location, Department, CostCenter, EmploymentHistory, HistoryChangeType
 )
+from app.models_v4 import (  # noqa: F401
+    OnboardingTemplate, OnboardingProcess, OnboardingTask, OnboardingStatus, TaskCategory, TaskAssigneeRole, TaskStatus
+)
 
 
 def gen_uuid():
