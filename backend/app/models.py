@@ -32,6 +32,10 @@ from app.models_v5 import (  # noqa: F401
     InterviewSchedule, InterviewScorecard, OfferLetter, ShiftTemplate, ShiftAssignment, ShiftSwapRequest,
     InterviewType, InterviewStatus, ScorecardVerdict, OfferStatus, ShiftType, SwapStatus
 )
+from app.models_v6 import (  # noqa: F401
+    LeavePolicy, LeaveBalance, CompOffRequest, PayrollComponent, SalaryStructure, PayrollRun, Payslip,
+    AccrualFrequency, CompOffStatus, ComponentType, PayrollRunStatus
+)
 
 
 def gen_uuid():
