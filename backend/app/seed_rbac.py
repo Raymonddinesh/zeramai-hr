@@ -82,6 +82,11 @@ PERMISSIONS = [
     "roles:update",
     # Audit
     "audit:view",
+    # Shifts
+    "shifts:view",
+    "shifts:create",
+    "shifts:update",
+    "shifts:swap",
 ]
 
 ROLE_PERMISSIONS = {
@@ -130,6 +135,10 @@ ROLE_PERMISSIONS = {
         "stipends:view",
         "stipends:create",
         "stipends:approve",
+        "shifts:view",
+        "shifts:create",
+        "shifts:update",
+        "shifts:swap",
     ],
     "HIRING_MANAGER": [
         "dashboard:view",

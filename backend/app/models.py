@@ -28,6 +28,10 @@ from app.models_v3 import (  # noqa: F401
 from app.models_v4 import (  # noqa: F401
     OnboardingTemplate, OnboardingProcess, OnboardingTask, OnboardingStatus, TaskCategory, TaskAssigneeRole, TaskStatus
 )
+from app.models_v5 import (  # noqa: F401
+    InterviewSchedule, InterviewScorecard, OfferLetter, ShiftTemplate, ShiftAssignment, ShiftSwapRequest,
+    InterviewType, InterviewStatus, ScorecardVerdict, OfferStatus, ShiftType, SwapStatus
+)
 
 
 def gen_uuid():
