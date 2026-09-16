@@ -18,6 +18,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+from app.models_v2 import (  # noqa: F401
+    JobOpening, CandidateApplication, WorkflowTemplate, WorkflowInstance, SAMLProvider,
+    JobStatus, ApplicationStage, WorkflowType, WorkflowStatus
+)
 
 
 def gen_uuid():

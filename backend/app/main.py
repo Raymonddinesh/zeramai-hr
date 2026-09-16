@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.database import Base, engine
-from app.routers import auth, candidates, documents, attendance, leave, evaluations, stipends, employees, audit_logs
+from app.routers import auth, candidates, documents, attendance, leave, evaluations, stipends, employees, audit_logs, job_openings, workflows, scim
 
 from contextlib import asynccontextmanager
 
@@ -28,6 +28,9 @@ app.include_router(evaluations.router)
 app.include_router(stipends.router)
 app.include_router(employees.router)
 app.include_router(audit_logs.router)
+app.include_router(job_openings.router)
+app.include_router(workflows.router)
+app.include_router(scim.router)
 
 
 @app.get("/api/health")
