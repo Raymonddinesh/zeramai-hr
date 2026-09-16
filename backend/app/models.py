@@ -36,6 +36,10 @@ from app.models_v6 import (  # noqa: F401
     LeavePolicy, LeaveBalance, CompOffRequest, PayrollComponent, SalaryStructure, PayrollRun, Payslip,
     AccrualFrequency, CompOffStatus, ComponentType, PayrollRunStatus
 )
+from app.models_v7 import (  # noqa: F401
+    ReviewCycle, OKRObjective, OKRKeyResult, PerformanceReview, Course, Enrollment, TrainingCertificate,
+    ReviewCycleStatus, ObjectiveStatus, KRStatus, ReviewRating, CourseStatus, EnrollmentStatus
+)
 
 
 def gen_uuid():
