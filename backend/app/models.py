@@ -48,6 +48,10 @@ from app.models_v9 import (  # noqa: F401
     CustomFieldDefinition, CustomFieldValue, CompliancePolicy, PolicyAcknowledgment, GrievanceCase,
     CustomFieldType, PolicyCategory, GrievanceCategory, GrievanceStatus
 )
+from app.models_v10 import (  # noqa: F401
+    HolidayCalendar, Holiday, CurrencyRate, SecurityPolicy, ActiveSession,
+    AIAssessment, AIHelpdeskKnowledge, HolidayType, AIAssessmentType
+)
 
 
 def gen_uuid():
