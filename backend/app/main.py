@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.database import Base, engine
-from app.routers import auth, candidates, documents, attendance, leave, evaluations, stipends, employees, audit_logs, job_openings, workflows, scim, organizations, history, onboarding, interviews, offers, shifts, leave_policies, payroll, performance, lms
+from app.routers import auth, candidates, documents, attendance, leave, evaluations, stipends, employees, audit_logs, job_openings, workflows, scim, organizations, history, onboarding, interviews, offers, shifts, leave_policies, payroll, performance, lms, analytics, notifications
 
 from contextlib import asynccontextmanager
 
@@ -41,6 +41,8 @@ app.include_router(leave_policies.router)
 app.include_router(payroll.router)
 app.include_router(performance.router)
 app.include_router(lms.router)
+app.include_router(analytics.router)
+app.include_router(notifications.router)
 
 
 @app.get("/api/health")

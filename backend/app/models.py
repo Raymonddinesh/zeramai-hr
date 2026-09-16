@@ -40,6 +40,10 @@ from app.models_v7 import (  # noqa: F401
     ReviewCycle, OKRObjective, OKRKeyResult, PerformanceReview, Course, Enrollment, TrainingCertificate,
     ReviewCycleStatus, ObjectiveStatus, KRStatus, ReviewRating, CourseStatus, EnrollmentStatus
 )
+from app.models_v8 import (  # noqa: F401
+    AnalyticsSnapshot, NotificationTemplate, Notification, Announcement,
+    NotificationChannel, NotificationStatus, NotificationPriority
+)
 
 
 def gen_uuid():
