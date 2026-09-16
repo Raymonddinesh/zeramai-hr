@@ -44,6 +44,10 @@ from app.models_v8 import (  # noqa: F401
     AnalyticsSnapshot, NotificationTemplate, Notification, Announcement,
     NotificationChannel, NotificationStatus, NotificationPriority
 )
+from app.models_v9 import (  # noqa: F401
+    CustomFieldDefinition, CustomFieldValue, CompliancePolicy, PolicyAcknowledgment, GrievanceCase,
+    CustomFieldType, PolicyCategory, GrievanceCategory, GrievanceStatus
+)
 
 
 def gen_uuid():
