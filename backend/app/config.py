@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     """
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str
-    jwt_secret: str
+    database_url: str = "sqlite:///./test.db"
+    jwt_secret: str = "testsecret"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     cookie_secure: bool = False

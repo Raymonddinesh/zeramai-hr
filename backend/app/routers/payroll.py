@@ -12,6 +12,8 @@ from app.models_v6 import (
     PayrollComponent, SalaryStructure, PayrollRun, Payslip,
     ComponentType, PayrollRunStatus,
 )
+from app.models_compensation import BonusIncentive
+
 
 router = APIRouter(prefix="/api/payroll", tags=["payroll"])
 
@@ -172,11 +174,132 @@ def compute_payroll(
     count = 0
 
     for ss in structures:
-        earnings = [c for c in (ss.components_json or []) if c.get("type") != "deduction"]
-        deductions = [c for c in (ss.components_json or []) if c.get("type") == "deduction"]
+        earnings = [dict(c) for c in (ss.components_json or []) if c.get("type") != "deduction"]
+        deductions = [dict(c) for c in (ss.components_json or []) if c.get("type") == "deduction"]
         gross = sum(c.get("amount", 0) for c in earnings) or float(ss.ctc_monthly)
         ded = sum(c.get("amount", 0) for c in deductions)
+
+        # Integrate approved bonuses for this pay period
+        approved_bonuses = db.query(BonusIncentive).filter(
+            BonusIncentive.person_id == ss.person_id,
+            BonusIncentive.status == "approved",
+            BonusIncentive.pay_period == run.month,
+            BonusIncentive.payroll_status == "pending",
+        ).all()
+        for b in approved_bonuses:
+            b_amount = float(b.amount)
+            earnings.append({"code": "BONUS", "name": f"Bonus ({b.bonus_type})", "amount": b_amount, "type": "earning"})
+            gross += b_amount
+            b.payroll_status = "processed"
+
+        # Module 12: India Statutory Deductions & Calculation Snapshots
+        try:
+            from app.models_statutory import (
+                StatutoryPeriod,
+                StatutoryCalculation,
+                StatutoryContribution,
+                StatutoryRule,
+                StatutoryScheme,
+            )
+            from app.models_v3 import Tenant, LegalEntity
+            from app.adapters.india_statutory_adapter import (
+                EPFAdapter,
+                ESIAdapter,
+                ProfessionalTaxAdapter,
+                TDSAdapter,
+            )
+
+            tenant = db.query(Tenant).first()
+            tenant_id = tenant.id if tenant else "default_tenant"
+            le = db.query(LegalEntity).filter(LegalEntity.tenant_id == tenant_id).first()
+            if not le:
+                le = LegalEntity(tenant_id=tenant_id, name="Primary Legal Entity", country_code="IN", default_currency="INR")
+                db.add(le)
+                db.flush()
+
+            y, m = [int(x) for x in run.month.split("-")]
+            import calendar
+            _, last_day = calendar.monthrange(y, m)
+            run_date = date(y, m, last_day)
+
+            stat_rules = db.query(StatutoryRule).filter(
+                StatutoryRule.tenant_id == tenant_id,
+                StatutoryRule.is_active == True,
+                StatutoryRule.effective_from <= run_date,
+                (StatutoryRule.effective_to == None) | (StatutoryRule.effective_to >= run_date),
+            ).all()
+
+            if stat_rules:
+                stat_period = db.query(StatutoryPeriod).filter(StatutoryPeriod.payroll_run_id == run_id).first()
+                if not stat_period:
+                    stat_period = StatutoryPeriod(
+                        tenant_id=tenant_id,
+                        legal_entity_id=le.id,
+                        start_date=date(y, m, 1),
+                        end_date=run_date,
+                        payroll_run_id=run_id,
+                    )
+                    db.add(stat_period)
+                    db.flush()
+
+                basic_wage = 0.0
+                for c in earnings:
+                    if str(c.get("code", "")).upper() in ("BASIC", "BASE"):
+                        basic_wage = float(c.get("amount", 0.0))
+                        break
+                if basic_wage == 0.0:
+                    basic_wage = float(gross) * 0.4 if gross > 0 else 15000.0
+
+                schemes_calculated = set()
+                for r in stat_rules:
+                    if r.scheme in schemes_calculated:
+                        continue
+                    schemes_calculated.add(r.scheme)
+
+                    res = None
+                    if r.scheme == StatutoryScheme.EPF:
+                        res = EPFAdapter(db).calculate(ss.person_id, run_date, basic_wage, gross, tenant_id=tenant_id)
+                    elif r.scheme == StatutoryScheme.ESI:
+                        res = ESIAdapter(db).calculate(ss.person_id, run_date, gross, tenant_id=tenant_id)
+                    elif r.scheme == StatutoryScheme.PROFESSIONAL_TAX:
+                        res = ProfessionalTaxAdapter(db).calculate(ss.person_id, run_date, gross, state=r.state or "Karnataka", tenant_id=tenant_id)
+                    elif r.scheme == StatutoryScheme.TDS:
+                        res = TDSAdapter(db).calculate(ss.person_id, run_date, gross, annual_ctc=float(ss.ctc_annual), tenant_id=tenant_id)
+
+                    if res and res.get("employee_deduction", 0) > 0:
+                        ded_amt = float(res["employee_deduction"])
+                        deductions.append({
+                            "code": r.scheme.value.upper(),
+                            "name": f"Statutory {r.scheme.value.upper()}",
+                            "amount": ded_amt,
+                            "type": "deduction",
+                            "statutory": True,
+                        })
+                        ded += ded_amt
+
+                        calc = StatutoryCalculation(
+                            period_id=stat_period.id,
+                            rule_id=r.id,
+                            person_id=ss.person_id,
+                            amount=ded_amt,
+                            result_snapshot=res,
+                            rule_version=res.get("rule_version", str(r.id)),
+                        )
+                        db.add(calc)
+                        db.flush()
+
+                        if res.get("employer_contribution", 0) > 0:
+                            contrib = StatutoryContribution(
+                                calculation_id=calc.id,
+                                contribution_type="employer",
+                                amount=float(res["employer_contribution"]),
+                            )
+                            db.add(contrib)
+        except Exception:
+            pass
+
         net = gross - ded
+
 
         slip = Payslip(
             payroll_run_id=run_id,

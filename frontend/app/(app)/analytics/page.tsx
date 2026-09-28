@@ -1,108 +1,146 @@
 "use client";
 
+import React, { useState } from "react";
 import useSWR from "swr";
+import Link from "next/link";
 import api from "@/lib/api";
 
 const fetcher = (url: string) => api.get(url).then((r) => r.data);
 
-export default function AnalyticsPage() {
-  const { data: metrics } = useSWR("/analytics/dashboard", fetcher);
-  const { data: trend } = useSWR("/analytics/headcount-trend", fetcher);
-  const { data: payrollSummary } = useSWR("/analytics/payroll-summary", fetcher);
+export default function AnalyticsDashboardPage() {
+  const [selectedDept, setSelectedDept] = useState<string>("");
+  const { data: dashboard, error, isLoading } = useSWR(
+    `/v3/analytics/dashboard${selectedDept ? `?department=${encodeURIComponent(selectedDept)}` : ""}`,
+    fetcher
+  );
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800">People Analytics & Workforce Intelligence</h2>
-        <p className="text-gray-500 text-sm">
-          Phase 9: Real-time workforce KPIs, historical headcount trends, leave utilization & department distribution
-        </p>
+      {/* Header & Sub-navigation */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Executive HR Analytics & Workforce Intelligence</h2>
+          <p className="text-gray-500 text-sm mt-1">
+            Real-time organizational telemetry across headcount, attrition, cost structure, and compliance.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/reports"
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm"
+          >
+            Report Builder
+          </Link>
+        </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* Domain Navigation Tabs */}
+      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
+        <Link href="/analytics" className="px-3 py-1.5 bg-indigo-50 text-indigo-700 font-semibold rounded-md text-sm">
+          Overview
+        </Link>
+        <Link href="/analytics/workforce" className="px-3 py-1.5 hover:bg-gray-100 text-gray-600 rounded-md text-sm">
+          Workforce & Headcount
+        </Link>
+        <Link href="/analytics/recruitment" className="px-3 py-1.5 hover:bg-gray-100 text-gray-600 rounded-md text-sm">
+          Recruitment & ATS
+        </Link>
+        <Link href="/analytics/attendance" className="px-3 py-1.5 hover:bg-gray-100 text-gray-600 rounded-md text-sm">
+          Attendance & Leave
+        </Link>
+        <Link href="/analytics/compensation" className="px-3 py-1.5 hover:bg-gray-100 text-gray-600 rounded-md text-sm">
+          Compensation & Cost
+        </Link>
+        <Link href="/analytics/performance" className="px-3 py-1.5 hover:bg-gray-100 text-gray-600 rounded-md text-sm">
+          Performance & LMS
+        </Link>
+        <Link href="/analytics/compliance" className="px-3 py-1.5 hover:bg-gray-100 text-gray-600 rounded-md text-sm">
+          Statutory Compliance
+        </Link>
+      </div>
+
+      {/* KPI Highlights */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Workforce</p>
-          <p className="text-2xl font-extrabold text-indigo-700 mt-1">{metrics?.total_persons ?? "—"}</p>
-          <span className="text-[11px] text-emerald-600 font-medium">Active in Master Database</span>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Headcount</p>
+          <p className="text-2xl font-extrabold text-indigo-700 mt-1">
+            {isLoading ? "..." : (dashboard?.headcount?.total_employees ?? "—")}
+          </p>
+          <span className="text-[11px] text-emerald-600 font-medium">
+            {dashboard?.headcount?.active_employees ?? 0} Active Engagements
+          </span>
         </div>
 
         <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active Engagements</p>
-          <p className="text-2xl font-extrabold text-blue-700 mt-1">{metrics?.active_employees ?? "—"}</p>
-          <span className="text-[11px] text-blue-600 font-medium">On active contracts</span>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Attendance Rate</p>
+          <p className="text-2xl font-extrabold text-blue-700 mt-1">
+            {isLoading ? "..." : `${dashboard?.attendance?.attendance_rate ?? 0}%`}
+          </p>
+          <span className="text-[11px] text-gray-500 font-medium">
+            Late arrivals: {dashboard?.attendance?.late_arrivals ?? 0}
+          </span>
         </div>
 
         <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pending Leaves</p>
-          <p className="text-2xl font-extrabold text-amber-600 mt-1">{metrics?.pending_leave_requests ?? "—"}</p>
-          <span className="text-[11px] text-amber-600 font-medium">Awaiting manager review</span>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Workforce Cost</p>
+          <p className="text-2xl font-extrabold text-amber-600 mt-1">
+            {isLoading ? "..." : `₹${(dashboard?.workforce_cost?.total_workforce_cost ?? 0).toLocaleString("en-IN")}`}
+          </p>
+          <span className="text-[11px] text-gray-500 font-medium">Annualized projections</span>
         </div>
 
         <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active LMS Learners</p>
-          <p className="text-2xl font-extrabold text-purple-700 mt-1">{metrics?.active_lms_enrollments ?? "—"}</p>
-          <span className="text-[11px] text-purple-600 font-medium">In skill development</span>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Compliance Health</p>
+          <p className="text-2xl font-extrabold text-purple-700 mt-1">
+            {isLoading ? "..." : `${dashboard?.compliance?.compliance_score_percent ?? 100}%`}
+          </p>
+          <span className="text-[11px] text-purple-600 font-medium">
+            Overdue items: {dashboard?.compliance?.overdue_tasks ?? 0}
+          </span>
         </div>
       </div>
 
+      {/* Grid: Department Breakdown and Funnel Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Department Distribution */}
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
           <h3 className="font-semibold text-gray-800">Headcount by Department</h3>
           <div className="space-y-3">
-            {metrics?.department_distribution && Object.entries(metrics.department_distribution).length > 0 ? (
-              Object.entries(metrics.department_distribution).map(([dept, count]: any) => (
-                <div key={dept} className="space-y-1">
+            {dashboard?.headcount?.by_department?.length > 0 ? (
+              dashboard.headcount.by_department.map((dept: any) => (
+                <div key={dept.name} className="space-y-1">
                   <div className="flex justify-between text-xs font-medium">
-                    <span className="text-gray-700">{dept || "Unassigned"}</span>
-                    <span className="font-bold text-gray-900">{count} members</span>
+                    <span className="text-gray-700">{dept.name}</span>
+                    <span className="font-bold text-gray-900">{dept.count} members ({dept.percentage}%)</span>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-2">
-                    <div
-                      className="bg-indigo-600 h-2 rounded-full"
-                      style={{ width: `${Math.min(100, count * 25)}%` }}
-                    ></div>
+                    <div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${dept.percentage || 10}%` }}></div>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="p-4 bg-gray-50 rounded-lg text-xs text-gray-500">
-                Engineering (4) • Human Resources (2) • Operations (1)
-              </div>
+              <p className="text-xs text-gray-500">No departmental records found.</p>
             )}
           </div>
         </div>
 
-        {/* Headcount Trends */}
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
-          <h3 className="font-semibold text-gray-800">Historical Headcount Snapshots</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50 text-gray-500 uppercase border-b">
-                <tr>
-                  <th className="px-4 py-2">Period</th>
-                  <th className="px-4 py-2">Dimension</th>
-                  <th className="px-4 py-2">Headcount Value</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y text-gray-700">
-                {(trend || []).map((t: any, idx: number) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="px-4 py-2.5 font-mono font-bold text-gray-900">{t.period}</td>
-                    <td className="px-4 py-2.5 text-gray-500">{t.dimension || "All Company"}</td>
-                    <td className="px-4 py-2.5 font-extrabold text-indigo-700">{t.value} employees</td>
-                  </tr>
-                ))}
-                {(!trend || trend.length === 0) && (
-                  <tr>
-                    <td colSpan={3} className="text-center py-6 text-gray-400">
-                      Baseline snapshot: 2026-Q3 • 42 Total Workforce
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <h3 className="font-semibold text-gray-800">Recruitment Funnel Velocity</h3>
+          <div className="space-y-3">
+            {dashboard?.recruitment?.funnel?.length > 0 ? (
+              dashboard.recruitment.funnel.map((stage: any) => (
+                <div key={stage.stage} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg">
+                  <span className="text-xs font-medium text-gray-700">{stage.stage}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-gray-900">{stage.count}</span>
+                    <span className="text-[11px] px-2 py-0.5 bg-indigo-100 text-indigo-700 font-semibold rounded">
+                      {stage.conversion_rate}%
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-gray-500">No active candidate funnel stages.</p>
+            )}
           </div>
         </div>
       </div>

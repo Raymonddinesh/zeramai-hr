@@ -1,192 +1,227 @@
-"""Phase 12 - Compliance, Policy Center & Grievance Resolution."""
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from typing import Optional
 from datetime import date, datetime
-import uuid
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.deps import get_current_user, require_permission, log_audit
-from app.models import AuditResult, User
-from app.models_v9 import (
-    CompliancePolicy, PolicyAcknowledgment, GrievanceCase,
-    PolicyCategory, GrievanceCategory, GrievanceStatus,
+from app.deps import get_current_user, require_permission, log_audit, has_permission
+from app.models import AuditResult, User, UserRole
+from app.models_v3 import Tenant, LegalEntity
+from app.models_statutory import StatutoryRegistration, StatutoryFiling, FilingStatus
+from app.models_compliance import ComplianceTask, ComplianceCalendar, ComplianceType, ComplianceStatus
+from app.schemas_compliance import (
+    ComplianceTaskCreate,
+    ComplianceTaskUpdate,
+    ComplianceTaskOut,
+    ComplianceDashboardOut,
+    ComplianceCalendarOut,
 )
 
-router = APIRouter(prefix="/api/compliance", tags=["compliance"])
+router = APIRouter(prefix="/api/v3/compliance", tags=["compliance"])
 
 
-# ── Schemas ──────────────────────────────────────────────────────────────
-
-class PolicyCreate(BaseModel):
-    title: str
-    version: str = "1.0"
-    category: PolicyCategory = PolicyCategory.CODE_OF_CONDUCT
-    content: str
-    effective_date: date
-    is_mandatory: bool = True
-
-
-class PolicyOut(BaseModel):
-    class Config:
-        from_attributes = True
-
-    id: str
-    title: str
-    version: str
-    category: PolicyCategory
-    effective_date: date
-    is_mandatory: bool
-    is_active: bool
+def _resolve_tenant_id(request: Request, db: Session) -> str:
+    header = request.headers.get("X-Tenant-ID")
+    if header:
+        return header
+    t = db.query(Tenant).first()
+    if not t:
+        t = Tenant(name="Default Tenant", domain="zeramai.com")
+        db.add(t)
+        db.commit()
+    return t.id
 
 
-class GrievanceCreate(BaseModel):
-    is_anonymous: bool = False
-    category: GrievanceCategory
-    title: str
-    description: str
+def is_hr_or_super(user: User) -> bool:
+    return user.role in (UserRole.SUPER_ADMIN, UserRole.HR_ADMIN)
 
 
-class GrievanceOut(BaseModel):
-    class Config:
-        from_attributes = True
+# ---------------------------------------------------------------------------
+# 1. Compliance Dashboard
+# ---------------------------------------------------------------------------
 
-    id: str
-    ticket_number: str
-    is_anonymous: bool
-    category: GrievanceCategory
-    title: str
-    status: GrievanceStatus
-    created_at: datetime
-
-
-# ── Policies ─────────────────────────────────────────────────────────────
-
-@router.post("/policies", response_model=PolicyOut, status_code=201)
-def create_policy(
-    payload: PolicyCreate,
+@router.get("/dashboard", response_model=ComplianceDashboardOut)
+def get_compliance_dashboard(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("templates:create")),
+    current_user: User = Depends(require_permission("compliance:view")),
 ):
-    policy = CompliancePolicy(**payload.model_dump())
-    db.add(policy)
-    db.commit()
-    db.refresh(policy)
-    log_audit(db, user=current_user, action="compliance_policy_created", entity="compliance_policy",
-              entity_id=policy.id, result=AuditResult.SUCCESS, request=request)
-    return policy
+    tenant_id = _resolve_tenant_id(request, db)
+    today = date.today()
 
+    tasks_query = db.query(ComplianceTask).filter(ComplianceTask.tenant_id == tenant_id)
+    cal_query = db.query(ComplianceCalendar).filter(ComplianceCalendar.tenant_id == tenant_id)
 
-@router.get("/policies", response_model=list[PolicyOut])
-def list_policies(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return db.query(CompliancePolicy).filter(CompliancePolicy.is_active == True).all()
+    # Automatically mark overdue tasks whose due date has passed
+    overdue_tasks = tasks_query.filter(
+        ComplianceTask.due_date < today,
+        ComplianceTask.status.notin_([ComplianceStatus.COMPLETED, ComplianceStatus.CANCELLED, ComplianceStatus.WAIVED]),
+    ).all()
+    for t in overdue_tasks:
+        t.status = ComplianceStatus.OVERDUE
+    if overdue_tasks:
+        db.commit()
 
+    total_tasks = tasks_query.all()
+    overdue_count = sum(1 for t in total_tasks if t.status == ComplianceStatus.OVERDUE)
+    completed_count = sum(1 for t in total_tasks if t.status == ComplianceStatus.COMPLETED)
+    upcoming_count = sum(1 for t in total_tasks if t.status in (ComplianceStatus.OPEN, ComplianceStatus.IN_PROGRESS, ComplianceStatus.DUE_SOON))
 
-@router.post("/policies/{policy_id}/acknowledge")
-def acknowledge_policy(
-    policy_id: str,
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    policy = db.query(CompliancePolicy).filter(CompliancePolicy.id == policy_id).first()
-    if not policy:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Policy not found")
+    pending_filings = db.query(StatutoryFiling).filter(
+        StatutoryFiling.tenant_id == tenant_id,
+        StatutoryFiling.status.in_([FilingStatus.DRAFT, FilingStatus.READY]),
+    ).count()
 
-    existing = db.query(PolicyAcknowledgment).filter(
-        PolicyAcknowledgment.policy_id == policy_id,
-        PolicyAcknowledgment.user_id == current_user.id,
-    ).first()
-    if existing:
-        return {"message": "Already acknowledged", "acknowledged_at": existing.acknowledged_at.isoformat()}
+    active_regs = db.query(StatutoryRegistration).filter(
+        StatutoryRegistration.tenant_id == tenant_id,
+        StatutoryRegistration.status == "active",
+    ).count()
 
-    ack = PolicyAcknowledgment(
-        policy_id=policy_id,
-        user_id=current_user.id,
-        ip_address=request.client.host if request.client else None,
+    events = cal_query.order_by(ComplianceCalendar.due_date.asc()).limit(20).all()
+
+    return ComplianceDashboardOut(
+        upcoming_deadlines_count=upcoming_count,
+        overdue_count=overdue_count,
+        pending_filings_count=pending_filings,
+        completed_tasks_count=completed_count,
+        active_registrations_count=active_regs,
+        tasks=[ComplianceTaskOut.model_validate(t) for t in total_tasks[:20]],
+        calendar_events=[ComplianceCalendarOut.model_validate(e) for e in events],
     )
-    db.add(ack)
-    db.commit()
-    log_audit(db, user=current_user, action="policy_acknowledged", entity="compliance_policy",
-              entity_id=policy_id, result=AuditResult.SUCCESS, request=request)
-    return {"message": "Policy acknowledged successfully", "acknowledged_at": ack.acknowledged_at.isoformat()}
 
 
-@router.get("/policies/{policy_id}/acknowledgments-status")
-def get_policy_acknowledgment_status(
-    policy_id: str,
+# ---------------------------------------------------------------------------
+# 2. Compliance Tasks
+# ---------------------------------------------------------------------------
+
+@router.get("/tasks", response_model=List[ComplianceTaskOut])
+def list_compliance_tasks(
+    compliance_type: Optional[ComplianceType] = None,
+    status_filter: Optional[ComplianceStatus] = None,
+    assigned_to_me: bool = False,
+    request: Request = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("reports:view")),
+    current_user: User = Depends(require_permission("compliance:view")),
 ):
-    acks_count = db.query(PolicyAcknowledgment).filter(PolicyAcknowledgment.policy_id == policy_id).count()
-    total_users = db.query(User).filter(User.is_active == True).count()
-    return {
-        "policy_id": policy_id,
-        "acknowledged_count": acks_count,
-        "total_active_users": total_users,
-        "compliance_rate_pct": round((acks_count / total_users * 100) if total_users > 0 else 0, 1),
-    }
+    tenant_id = _resolve_tenant_id(request, db)
+    query = db.query(ComplianceTask).filter(ComplianceTask.tenant_id == tenant_id)
+
+    if compliance_type:
+        query = query.filter(ComplianceTask.compliance_type == compliance_type)
+    if status_filter:
+        query = query.filter(ComplianceTask.status == status_filter)
+    if assigned_to_me:
+        query = query.filter(ComplianceTask.assigned_user_id == current_user.id)
+
+    return query.order_by(ComplianceTask.due_date.asc()).all()
 
 
-# ── Grievance & Whistleblower ───────────────────────────────────────────
-
-@router.post("/grievances", response_model=GrievanceOut, status_code=201)
-def submit_grievance(
-    payload: GrievanceCreate,
+@router.post("/tasks", response_model=ComplianceTaskOut, status_code=status.HTTP_201_CREATED)
+def create_compliance_task(
+    payload: ComplianceTaskCreate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("compliance:manage")),
 ):
-    ticket_num = f"GRV-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
-    complainant = None if payload.is_anonymous else current_user.id
+    tenant_id = _resolve_tenant_id(request, db)
 
-    case = GrievanceCase(
-        ticket_number=ticket_num,
-        is_anonymous=payload.is_anonymous,
-        complainant_user_id=complainant,
-        category=payload.category,
+    task = ComplianceTask(
+        tenant_id=tenant_id,
+        legal_entity_id=payload.legal_entity_id,
+        compliance_type=payload.compliance_type,
+        authority=payload.authority,
         title=payload.title,
         description=payload.description,
+        period=payload.period,
+        due_date=payload.due_date,
+        status=ComplianceStatus.OPEN,
+        priority=payload.priority or 1,
+        assigned_user_id=payload.assigned_user_id,
+        evidence_document_id=payload.evidence_document_id,
+        source_entity_type=payload.source_entity_type,
+        source_entity_id=payload.source_entity_id,
+        reminder_config=payload.reminder_config,
     )
-    db.add(case)
+    db.add(task)
     db.commit()
-    db.refresh(case)
-    log_audit(db, user=current_user, action="grievance_submitted", entity="grievance_case",
-              entity_id=case.id, result=AuditResult.SUCCESS, request=request,
-              metadata={"anonymous": payload.is_anonymous})
-    return case
+    db.refresh(task)
+
+    log_audit(
+        db,
+        user=current_user,
+        action="compliance_task_created",
+        entity="compliance_task",
+        entity_id=task.id,
+        result=AuditResult.SUCCESS,
+        request=request,
+        metadata={"title": task.title, "type": task.compliance_type.value},
+    )
+    return task
 
 
-@router.get("/grievances", response_model=list[GrievanceOut])
-def list_grievances(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("audit:view")),
-):
-    return db.query(GrievanceCase).order_by(GrievanceCase.created_at.desc()).all()
-
-
-@router.patch("/grievances/{case_id}/resolve")
-def resolve_grievance(
-    case_id: str,
-    resolution_notes: str,
+@router.get("/tasks/{task_id}", response_model=ComplianceTaskOut)
+def get_compliance_task(
+    task_id: str,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("audit:view")),
+    current_user: User = Depends(require_permission("compliance:view")),
 ):
-    case = db.query(GrievanceCase).filter(GrievanceCase.id == case_id).first()
-    if not case:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Grievance case not found")
+    tenant_id = _resolve_tenant_id(request, db)
+    task = db.query(ComplianceTask).filter(ComplianceTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Compliance task not found")
+    if task.tenant_id != tenant_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Cross-tenant task access forbidden")
+    return task
 
-    case.status = GrievanceStatus.RESOLVED
-    case.resolution_notes = resolution_notes
-    case.resolved_at = datetime.utcnow()
-    case.assigned_investigator_id = current_user.id
+
+@router.patch("/tasks/{task_id}", response_model=ComplianceTaskOut)
+def update_compliance_task(
+    task_id: str,
+    payload: ComplianceTaskUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update task status or assignment. Authorized for compliance managers or assigned task owners."""
+    tenant_id = _resolve_tenant_id(request, db)
+    task = db.query(ComplianceTask).filter(ComplianceTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Compliance task not found")
+    if task.tenant_id != tenant_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Cross-tenant task access forbidden")
+
+    is_manager = is_hr_or_super(current_user) or has_permission(current_user, "compliance:manage", db)
+    is_assigned = task.assigned_user_id and str(task.assigned_user_id) == str(current_user.id)
+    has_complete_perm = has_permission(current_user, "compliance:complete", db)
+
+    if not (is_manager or is_assigned or has_complete_perm):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Unauthorized to update this compliance task")
+
+    if payload.status:
+        task.status = payload.status
+        if payload.status == ComplianceStatus.COMPLETED:
+            task.completed_at = datetime.utcnow()
+    if payload.priority is not None and is_manager:
+        task.priority = payload.priority
+    if payload.assigned_user_id is not None and is_manager:
+        task.assigned_user_id = payload.assigned_user_id
+    if payload.evidence_document_id is not None:
+        task.evidence_document_id = payload.evidence_document_id
+    if payload.description is not None:
+        task.description = payload.description
+
     db.commit()
-    log_audit(db, user=current_user, action="grievance_resolved", entity="grievance_case",
-              entity_id=case.id, result=AuditResult.SUCCESS, request=request)
-    return {"id": case.id, "status": case.status, "resolved_at": case.resolved_at.isoformat()}
+    db.refresh(task)
+
+    log_audit(
+        db,
+        user=current_user,
+        action="compliance_task_updated",
+        entity="compliance_task",
+        entity_id=task.id,
+        result=AuditResult.SUCCESS,
+        request=request,
+        metadata={"status": task.status.value},
+    )
+    return task

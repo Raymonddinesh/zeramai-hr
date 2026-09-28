@@ -52,6 +52,130 @@ from app.models_v10 import (  # noqa: F401
     HolidayCalendar, Holiday, CurrencyRate, SecurityPolicy, ActiveSession,
     AIAssessment, AIHelpdeskKnowledge, HolidayType, AIAssessmentType
 )
+from app.models_hr_requests import (  # noqa: F401
+    HRRequest, HRRequestComment, HRRequestCategory, HRRequestPriority, HRRequestStatus
+)
+from app.models_asset import AssetCatalog, AssetAssignmentHistory, AssetAssignmentAction, AssetStatus, AssetCondition  # noqa: F401
+from app.models_offboarding import (
+    ExitRequest, ExitClearanceTask, ExitHandover, ExitInterview, ExitSettlement,
+    ExitStatus, ExitClearanceDepartment,
+)
+
+from app.models_ess import (  # noqa: F401
+    EmployeeAsset, ExpenseClaim
+)
+from app.models_compensation import (  # noqa: F401
+    CompensationRevision, BonusIncentive, BenefitPlan, BenefitEnrollment,
+    RevisionStatus, RevisionReason, BonusType, BonusStatus, BenefitType, EnrollmentStatus
+)
+from app.models_policy_er import (  # noqa: F401
+    HRPolicy, PolicyAcknowledgementRecord, EmployeeRelationsCase, ERCaseNote, DisciplinaryAction,
+    HRPolicyStatus, HRPolicyCategory, ERCaseCategory, ERCaseStatus, ERCaseSeverity,
+    DisciplinaryActionType, DisciplinaryStatus
+)
+from app.models_statutory import (  # noqa: F401
+    StatutoryAuthority, StatutoryScheme, FilingStatus, PaymentStatus, TaxRegime, TaxDeclarationStatus,
+    StatutoryRule, StatutoryRegistration, StatutoryApplicability, StatutoryPeriod,
+    StatutoryCalculation, StatutoryContribution, StatutoryFiling, StatutoryPayment, TaxDeclaration,
+)
+from app.models_compliance import (  # noqa: F401
+    ComplianceType, ComplianceStatus, ComplianceTask, ComplianceCalendar,
+)
+from app.models_analytics import (  # noqa: F401
+    ReportType, Visibility, DashboardType, WidgetType, ScheduleFrequency, ExecutionStatus, ExportFormat,
+    AnalyticsReportDefinition, AnalyticsDashboard, AnalyticsWidget, AnalyticsFilter,
+    ScheduledReport, ReportExecution, ReportExport,
+)
+from app.models_integrations import (  # noqa: F401
+    EncryptedSecret, IntegrationProvider, IntegrationConnection, IdentityProviderConfig,
+    SCIMConfiguration, SCIMProvisioningEvent, APIKey, WebhookEndpoint, WebhookDelivery,
+    IntegrationEvent, IntegrationExecutionLog,
+    ProviderCategory, ConnectionStatus, ConnectionEnvironment, SSOProtocol,
+    SCIMEventType, OutboxStatus, WebhookDeliveryStatus, ExecutionDirection,
+)
+from app.models_governance import (  # noqa: F401
+    DataClassification, DataAsset, RetentionPolicy, RetentionPolicyAssignment,
+    DataLifecycleRecord, LegalHold, LegalHoldTarget, PrivacyRequest,
+    BackupPolicy, BackupExecution, DRPolicy, DRTest,
+    BusinessContinuityPlan, BCPAction, DataResidencyPolicy,
+    SensitivityLevel, RecordLifecycleStatus, LegalHoldStatus,
+    PrivacyRequestType, PrivacyRequestStatus, BackupStatus,
+    DRPriority, DRTestStatus, BCPCriticality, BCPStatus,
+)
+from app.models_finance import (  # noqa: F401
+    FinancialDimension, FinancialDimensionValue, EmployeeCostAllocation,
+    GLAccount, GLMapping, PayrollJournal, PayrollJournalLine,
+    WorkforceCostRecord, ExpenseAccountingEntry, AccrualRule, AccrualRecord,
+    WorkforceBudget, WorkforceBudgetLine, Vendor, VendorContract, VendorInvoice,
+    DimensionType, CostAllocationType, GLAccountType, GLTransactionType,
+    PayrollJournalStatus, ExpenseAccountingStatus, AccrualType, AccrualStatus,
+    BudgetStatus, BudgetCategory, VendorCategory, InvoiceStatus,
+)
+from app.models_workforce_planning import (  # noqa: F401
+    OrganizationUnit, Position, PositionAssignment, HeadcountPlan, HeadcountPlanLine,
+    WorkforceDemandPlan, WorkforceDemandLine, WorkforceGap,
+    Skill, SkillLevel, EmployeeSkill, SkillRequirement, SkillGapAnalysis,
+    CriticalRole, SuccessionPlan, SuccessionCandidate,
+    TalentPool, TalentPoolMember,
+    WorkforceScenario, WorkforceScenarioLine,
+    WorkforceHiringPlan, HiringPlanLine, MobilityPlan,
+    OrgUnitType, PositionStatus, PositionAssignmentType, HeadcountPlanStatus,
+    WorkforceGapType, SkillGapSeverity, RoleCriticality, SuccessionStatus,
+    ReadinessLevel, TalentPoolStatus, WorkforceScenarioType, HiringPlanStatus,
+    MobilityType, MobilityStatus,
+)
+from app.models_learning import (  # noqa: F401
+    TrainingProvider, LearningCourse, LearningModule, CourseContent,
+    LearningPath, LearningPathCourse, CourseSkillMapping,
+    LearningEnrollment, LearningProgress, LearningAssessment,
+    AssessmentQuestion, AssessmentAttempt, Certification,
+    EmployeeCertification, TrainingRequirement, TrainingAssignment,
+    LearningPlan, LearningPlanItem, DevelopmentPlan, DevelopmentGoal,
+    CareerFramework, CareerLevel, CareerPath,
+    CareerOpportunity, CareerApplication,
+    MentoringProgram, MentoringRelationship,
+    SkillDevelopmentAction, SkillEvidence,
+    LearningType, DeliveryMode, CourseLifecycleStatus, ProviderType,
+    ContentType, EnrollmentType, LearningEnrollmentStatus, QuestionType,
+    CertificationVerificationStatus, PlanStatus, OpportunityStatus,
+    CareerApplicationStatus, MentoringStatus, SkillActionType, SkillEvidenceType,
+)
+from app.models_engagement import (  # noqa: F401
+    SurveyTemplate, SurveyQuestion, SurveyCampaign, SurveyRecipient,
+    SurveyResponse, SurveyAnswer, EmployeeFeedback, EmployeeSuggestion,
+    EngagementActionPlan, EngagementActionItem, RecognitionProgram,
+    RecognitionAward, AwardDefinition, AwardNomination,
+    CultureInitiative, CultureParticipation,
+    SurveyType, SurveyTemplateStatus, SurveyQuestionType, SurveyCampaignStatus,
+    SurveyAudienceType, SurveyVisibilityType, ParticipationStatus,
+    FeedbackCategory, FeedbackVisibility, FeedbackStatus, SuggestionStatus,
+    ActionPlanStatus, RecognitionType, AwardNominationStatus, CultureInitiativeCategory,
+)
+from app.models_communications import (  # noqa: F401
+    KnowledgeCategory, KnowledgeArticle, KnowledgeArticleVersion,
+    KnowledgeAccessRule, KnowledgeArticleRelation, KnowledgeFeedback,
+    KnowledgeArticleView, KnowledgeReviewTask, KnowledgeSearchEvent,
+    EmployeeAnnouncement, AnnouncementAudienceRule, AnnouncementReadReceipt,
+    CommunicationAcknowledgement, CommunicationTemplate, CommunicationPreference,
+    ArticleType, ArticleStatus, ArticleVisibility, AccessRuleType,
+    ArticleRelationType, KnowledgeFeedbackType, ReviewTaskStatus,
+    AnnouncementType, AnnouncementPriority, AnnouncementStatus,
+    AudienceType, CommunicationTemplateType, CommunicationCategory,
+)
+from app.models_global_payroll import (  # noqa: F401
+    PayrollCountry, GlobalPayrollConfiguration, PayrollPayGroup, PayrollCalendar,
+    GlobalPayComponent, PayrollInput, CountryPayrollRule, GlobalPayrollResult,
+    PayrollResultComponent, PayrollExchangeRate, EmployeePayrollAssignment,
+    PayrollAdjustment, PayrollReconciliation, GlobalPayslipRecord,
+    CountryPayrollStatus, PayrollFrequency, PayrollCalendarStatus,
+    GlobalPayComponentType, PayrollInputSource, CountryPayrollRuleType,
+    GlobalPayrollResultStatus, FXRateSource, AssignmentPayrollStatus,
+    PayrollAdjustmentType, PayrollAdjustmentStatus, PayrollReconciliationStatus,
+    GlobalPayslipStatus,
+)
+
+
+
 
 
 def gen_uuid():

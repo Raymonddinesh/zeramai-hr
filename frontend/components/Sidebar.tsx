@@ -35,13 +35,28 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
       { href: "/jobs", label: "ATS & Requisitions", icon: "💼", roles: ["super_admin", "hr_admin", "hiring_manager"] },
       { href: "/candidates", label: "Candidates", icon: "👤", roles: ["super_admin", "hr_admin", "hiring_manager"] },
       { href: "/performance", label: "Performance & OKRs", icon: "🎯", roles: ["super_admin", "hr_admin", "hiring_manager", "employee"] },
-      { href: "/learning", label: "LMS & Skills", icon: "🎓", roles: ["super_admin", "hr_admin", "employee"] },
+      { href: "/engagement", label: "Engagement & Culture", icon: "❤️", roles: ["super_admin", "hr_admin", "hiring_manager", "employee"] },
+      { href: "/learning", label: "Learning & Career", icon: "🎓", roles: ["super_admin", "hr_admin", "employee"] },
+      { href: "/workforce-planning", label: "Workforce Planning & Org", icon: "🗺️", roles: ["super_admin", "hr_admin"] },
+    ],
+  },
+  {
+    title: "Communications & Knowledge",
+    items: [
+      { href: "/communications", label: "Communications Center", icon: "📢", roles: ["super_admin", "hr_admin", "hiring_manager", "employee", "finance"] },
+      { href: "/knowledge", label: "Knowledge Hub", icon: "📚", roles: ["super_admin", "hr_admin", "hiring_manager", "employee", "finance"] },
+      { href: "/communications/team", label: "Team Comms", icon: "👥", roles: ["super_admin", "hr_admin", "hiring_manager"] },
+      { href: "/admin/communications", label: "Comms Admin", icon: "📡", roles: ["super_admin", "hr_admin"] },
+      { href: "/admin/knowledge", label: "Knowledge Admin", icon: "📖", roles: ["super_admin", "hr_admin"] },
     ],
   },
   {
     title: "Finance & Analytics",
     items: [
-      { href: "/payroll", label: "Global Payroll", icon: "💵", roles: ["super_admin", "hr_admin", "finance"] },
+      { href: "/payroll", label: "Payroll Engine", icon: "💵", roles: ["super_admin", "hr_admin", "finance"] },
+      { href: "/global-payroll", label: "Global Payroll Hub", icon: "🌐", roles: ["super_admin", "hr_admin", "finance", "employee"] },
+      { href: "/admin/global-payroll", label: "Global Payroll Admin", icon: "🗺️", roles: ["super_admin", "hr_admin", "finance"] },
+      { href: "/finance", label: "Finance & Cost Center", icon: "🏛️", roles: ["super_admin", "hr_admin", "finance"] },
       { href: "/stipends", label: "Stipends", icon: "💰", roles: ["super_admin", "hr_admin", "finance", "employee"] },
       { href: "/analytics", label: "People Analytics", icon: "📊", roles: ["super_admin", "hr_admin", "finance"] },
     ],
@@ -50,9 +65,17 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     title: "Governance & IAM",
     items: [
       { href: "/compliance", label: "Compliance & Whistleblower", icon: "⚖️", roles: ["super_admin", "hr_admin", "employee"] },
+      { href: "/governance", label: "Data Governance & Privacy", icon: "🛡️", roles: ["super_admin", "hr_admin"] },
       { href: "/settings", label: "Security, IAM & AI Suite", icon: "⚙️", roles: ["super_admin", "hr_admin"] },
     ],
   },
+   
+   {
+       title: "Company Setup",
+       items: [
+           { href: "/legal-profile", label: "Company Legal Profile", icon: "🏢", roles: ["super_admin","hr_admin"] },
+       ],
+   },
 ];
 
 export default function Sidebar() {

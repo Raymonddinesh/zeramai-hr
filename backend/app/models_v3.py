@@ -85,9 +85,18 @@ class CostCenter(Base):
 
     id = Column(String, primary_key=True, default=gen_uuid)
     tenant_id = Column(String, ForeignKey("tenants.id"), nullable=False, index=True)
-    legal_entity_id = Column(String, ForeignKey("legal_entities.id"), nullable=False)
-    code = Column(String, nullable=False)
+    legal_entity_id = Column(String, ForeignKey("legal_entities.id"), nullable=True)
+    code = Column(String, nullable=False, index=True)
     name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    manager_person_id = Column(String, ForeignKey("persons.id"), nullable=True)
+    parent_cost_center_id = Column(String, ForeignKey("cost_centers.id"), nullable=True)
+    currency = Column(String(10), default="INR", nullable=False)
+    active = Column(Boolean, default=True, nullable=False)
+    effective_from = Column(Date, default=date.today, nullable=True)
+    effective_to = Column(Date, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
 # ---------------------------------------------------------------------------

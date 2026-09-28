@@ -23,6 +23,9 @@ zeramai.db
 backend/zeramai.db
 backend/storage/*
 !backend/storage/.gitkeep
+storage/
+scratch/
+backend/scratch/
 
 # Environment Files & Credentials
 .env
